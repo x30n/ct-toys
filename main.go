@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"net/http"
 	"os"
@@ -18,8 +19,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/x30n/ct-toys/models"
+
 	"github.com/stvp/go-toml-config"
 )
+
+type Env struct {
+	db models.Datastore
+}
 
 const (
 	logVersion           = 0
@@ -391,42 +398,50 @@ func (log *Log) DownloadRange(status chan<- OperationStatus, start, upTo uint64)
 func main() {
 
 	// Parse config file
+	// TODO: Config file name should be an optional flag with default
 	if err := config.Parse("ct.conf"); err != nil {
 		panic(err)
 	}
-
-	// Specific to Google Pilot Log.
-	// TODO: Need to add support to parse current log JSON
-	// from certificate-transparency.org and query all logs
-	pilotKeyPEM := `
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfahLEimAoz2t01p3uMziiLOl/fHT
-DM0YDOhBRuiBARsV4UvxG2LdNgoIGLrtCzWE0J5APC2em4JlvR8EEEFMoA==
------END PUBLIC KEY-----`
-
-	block, _ := pem.Decode([]byte(pilotKeyPEM))
-	key, _ := x509.ParsePKIXPublicKey(block.Bytes)
-	pilotKey := key.(*ecdsa.PublicKey)
-	pilotLog := &Log{Root: "https://ct.googleapis.com/pilot", Key: pilotKey}
-
-	head, err := pilotLog.GetHead()
+	// TODO: Connection string needs to come from config
+	db, err := models.NewDB("postgres://localhost/ctmonitor?sslmode=disable")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error Occurred: %s\n", err)
+		log.Panic(err)
+	}
+
+	env := &Env{db}
+
+	logs, err := env.db.AllLogs()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error retrieving logs sources from DB: %s\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("%d total entries at %s\n", head.Size, head.Time.Format(time.ANSIC))
+	for _, log := range logs {
+		url := fmt.Sprintf("https://%s", log.URL)
+		keyPem := fmt.Sprintf("-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----\n", log.PubKey)
+		block, _ := pem.Decode([]byte(keyPem))
+		key, _ := x509.ParsePKIXPublicKey(block.Bytes)
+		pk := key.(*ecdsa.PublicKey)
+		lg := &Log{Root: url, Key: pk}
+		// fmt.Printf("Retrieving logs from: %s\nPubKey:%s\n", url, log.PubKey)
+		head, err := lg.GetHead()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error Occurred: %s\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("%d total entries at %s\n", head.Size, head.Time.Format(time.ANSIC))
 
-	count := uint64(0)
+		count := uint64(0)
 
-	statusChan := make(chan OperationStatus, 1)
-	wg := new(sync.WaitGroup)
-	displayProgress(statusChan, wg)
-	_, err = pilotLog.DownloadRange(statusChan, count, head.Size)
-	wg.Wait()
-	clearLine()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error while downloading: %s\n", err)
-		os.Exit(1)
+		statusChan := make(chan OperationStatus, 1)
+		wg := new(sync.WaitGroup)
+		displayProgress(statusChan, wg)
+		_, err = lg.DownloadRange(statusChan, count, head.Size)
+		wg.Wait()
+		clearLine()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error while downloading: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	// Need to verify hash, etc.

@@ -10,6 +10,7 @@ type LogSource struct {
 	Operator      []int  `json:"operated_by"`
 	OperatedBy    string
 	LastSeenId    int64
+	DBID          int64
 }
 
 // // This stub was meant to do the UPSERT in a transaction, but having trouble...
@@ -72,7 +73,7 @@ func (db *DB) LogSourceUpdate(log LogSource, id int64) error {
 }
 
 func (db *DB) LogSourceCreate(log LogSource) (int64, error) {
-	result, err := db.Exec("INSERT INTO log_source (description, pubkey, url, max_merge_delay, operated_by) VALUES($1, $2, $3, $4, $5) RETURNING id", log.Description, log.PubKey, log.URL, log.MaxMergeDelay, log.OperatedBy)
+	result, err := db.Exec("INSERT INTO log_source (description, pubkey, url, max_merge_delay, operated_by, last_seen_id) VALUES($1, $2, $3, $4, $5, 0) RETURNING id", log.Description, log.PubKey, log.URL, log.MaxMergeDelay, log.OperatedBy)
 	if err != nil {
 		return 0, err
 	}
@@ -85,7 +86,7 @@ func (db *DB) LogSourceCreate(log LogSource) (int64, error) {
 }
 
 func (db *DB) AllLogs() ([]*LogSource, error) {
-	rows, err := db.Query("SELECT * FROM log_source")
+	rows, err := db.Query("SELECT id, description, pubkey, url, max_merge_delay, operated_by, last_seen_id FROM log_source")
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +95,7 @@ func (db *DB) AllLogs() ([]*LogSource, error) {
 	logs := make([]*LogSource, 0)
 	for rows.Next() {
 		log := new(LogSource)
-		err := rows.Scan(&log.Description, &log.PubKey, &log.URL, &log.MaxMergeDelay, log.OperatedBy)
+		err := rows.Scan(&log.DBID, &log.Description, &log.PubKey, &log.URL, &log.MaxMergeDelay, &log.OperatedBy, &log.LastSeenId)
 		if err != nil {
 			return nil, err
 		}
