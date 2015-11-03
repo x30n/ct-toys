@@ -4,12 +4,13 @@ description varchar(255) NOT NULL,
 pubkey varchar(1024) NOT NULL,
 url varchar(512) NOT NULL,
 max_merge_delay int NOT NULL,
-operated_by varchar(255) NOT NULL
+operated_by varchar(255) NOT NULL,
+last_seen_id bigint
 );
 
 CREATE TABLE certificate_log (
 id bigserial NOT NULL,
-x509cert blob NOT NULL
+x509cert bytea NOT NULL
 );
 
 CREATE TABLE watched_certificate_cache (
