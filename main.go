@@ -111,7 +111,6 @@ func clearLine() {
 }
 
 func displayProgress(statusChan chan OperationStatus, wg *sync.WaitGroup) {
-	fmt.Printf("displayProgress fired\n")
 	wg.Add(1)
 
 	go func() {
@@ -337,12 +336,24 @@ func ParseEntry(leafData, extraData []byte) (*Entry, error) {
 	return entry, nil
 }
 
+func (env *Env) writeLastSeen(logSourceId int64, lastSeenId int64) {
+	err := env.db.LogSourceUpdateLastSeen(logSourceId, lastSeenId)
+	if err != nil {
+		panic(err)
+	}
+}
+
 // func (log *Log) DownloadRange(out io.Writer, status chan<- OperationStatus, start, upTo uint64) (uint64, error) {
-func (log *Log) DownloadRange(status chan<- OperationStatus, start, upTo uint64) (uint64, error) {
+func (log *Log) DownloadRange(status chan<- OperationStatus, start, upTo uint64, logSourceId int64, env *Env) (uint64, error) {
 	if status != nil {
 		defer close(status)
 	}
 	done := start
+
+	// TODO: This isn't actually working. Trying to get it to periodically write
+	// the last seen certificate id to the DB so we don't retrieve / store again
+	defer env.writeLastSeen(logSourceId, int64(done))
+
 	for done < upTo {
 		if status != nil {
 			status <- OperationStatus{start, done, upTo}
@@ -375,7 +386,7 @@ func (log *Log) DownloadRange(status chan<- OperationStatus, start, upTo uint64)
 				}
 				pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: e.X509Cert})
 				certOut.Close()
-				fmt.Printf("Error Parsing Certificate: %d\n", done)
+				// fmt.Printf("Error Parsing Certificate: %d\n", done)
 				continue
 			}
 			// TODO: Possibly have logging of all seen certs an optional config
@@ -449,12 +460,15 @@ func main() {
 		}
 		fmt.Printf("%d total entries at %s\n", head.Size, head.Time.Format(time.ANSIC))
 
-		count := uint64(0)
+		// TODO: change to last_seen_id lookup
+		// count := uint64(0)
+
+		count := uint64(log.LastSeenId)
 
 		statusChan := make(chan OperationStatus, 1)
 		wg := new(sync.WaitGroup)
 		displayProgress(statusChan, wg)
-		_, err = lg.DownloadRange(statusChan, count, head.Size)
+		_, err = lg.DownloadRange(statusChan, count, head.Size, log.DBID, env)
 		wg.Wait()
 		clearLine()
 		if err != nil {

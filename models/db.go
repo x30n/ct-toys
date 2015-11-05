@@ -8,8 +8,11 @@ import (
 )
 
 type Datastore interface {
+	// CT Log Sources
 	LogSourceCreateOrUpdate(LogSource) (int64, error)
 	LogSourceCreate(LogSource) (int64, error)
+	LogSourceUpdateLastSeen(int64, int64) error
+
 	AllLogs() ([]*LogSource, error)
 
 	// Raw (x509) Certificates
@@ -17,6 +20,9 @@ type Datastore interface {
 
 	// Cached (Watched) Certificates
 	CachedCertificateCreate(*x509.Certificate, int64) (int64, error)
+
+	// SANs
+	// SANCreate(string, int64) (int64, error)
 }
 
 type DB struct {

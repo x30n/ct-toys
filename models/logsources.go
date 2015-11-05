@@ -72,6 +72,14 @@ func (db *DB) LogSourceUpdate(log LogSource, id int64) error {
 	return nil
 }
 
+func (db *DB) LogSourceUpdateLastSeen(logSourceId int64, lastSeenId int64) error {
+	_, err := db.Exec("UPDATE log_source SET last_seen_id = $1 WHERE id = $2", lastSeenId, logSourceId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (db *DB) LogSourceCreate(log LogSource) (int64, error) {
 	result, err := db.Exec("INSERT INTO log_source (description, pubkey, url, max_merge_delay, operated_by, last_seen_id) VALUES($1, $2, $3, $4, $5, 0) RETURNING id", log.Description, log.PubKey, log.URL, log.MaxMergeDelay, log.OperatedBy)
 	if err != nil {
