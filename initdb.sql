@@ -13,6 +13,9 @@ id bigserial NOT NULL,
 x509cert bytea NOT NULL
 );
 
+/*
+Changed most subject fields to bytea because no guarantee of utf-8
+*/
 CREATE TABLE watched_certificate_cache (
 id bigserial NOT NULL,
 version int NOT NULL,
@@ -20,12 +23,12 @@ serial_num bigint NOT NULL,
 not_before timestamp NOT NULL,
 not_after timestamp NOT NULL,
 issuer text NOT NULL, 
-subject_common_name varchar(255) NOT NULL,
-subject_country varchar(2) NOT NULL,
-subject_state varchar(255) NOT NULL,
-subject_location varchar(255) NOT NULL,
-subject_organization text NOT NULL,
-subject_organization_unit text NOT NULL,
+subject_common_name bytea NOT NULL,
+subject_country varchar(20) NOT NULL,
+subject_state bytea NOT NULL,
+subject_location bytea NOT NULL,
+subject_organization bytea NOT NULL,
+subject_organization_unit bytea NOT NULL,
 certificate_log_id bigint NOT NULL
 );
 
