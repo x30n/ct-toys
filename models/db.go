@@ -10,6 +10,9 @@ type Datastore interface {
 	LogSourceCreateOrUpdate(LogSource) (int64, error)
 	LogSourceCreate(LogSource) (int64, error)
 	AllLogs() ([]*LogSource, error)
+
+	// Raw (x509) Certificates
+	CertificateCreate([]byte) (int64, error)
 }
 
 type DB struct {

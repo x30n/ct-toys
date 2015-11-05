@@ -378,6 +378,14 @@ func (log *Log) DownloadRange(status chan<- OperationStatus, start, upTo uint64)
 				fmt.Printf("Error Parsing Certificate: %d\n", done)
 				continue
 			}
+			// TODO: Possibly have logging of all seen certs an optional config
+			// only logging watched certs
+			certDbId, err := env.db.CertificateCreate(e.X509Cert)
+			if err != nil {
+				ex := fmt.Sprintf("Failed to insert x509 cert into DB\n%s", err)
+				return done, errors.New(ex)
+				// log.Panic(err)
+			}
 			// fmt.Printf("%s\n", cert.Subject.CommonName)
 			if strings.HasSuffix(cert.Subject.CommonName, *searchTerm) {
 				fmt.Printf("CN Match: %s\n", cert.Subject.CommonName)
