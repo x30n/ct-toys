@@ -1,6 +1,7 @@
 package models
 
 import (
+	"crypto/x509"
 	"database/sql"
 
 	_ "github.com/lib/pq"
@@ -13,6 +14,9 @@ type Datastore interface {
 
 	// Raw (x509) Certificates
 	CertificateCreate([]byte) (int64, error)
+
+	// Cached (Watched) Certificates
+	CachedCertificateCreate(*x509.Certificate, int64) (int64, error)
 }
 
 type DB struct {

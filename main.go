@@ -387,12 +387,23 @@ func (log *Log) DownloadRange(status chan<- OperationStatus, start, upTo uint64)
 				// log.Panic(err)
 			}
 			// fmt.Printf("%s\n", cert.Subject.CommonName)
+			match := false
 			if strings.HasSuffix(cert.Subject.CommonName, *searchTerm) {
-				fmt.Printf("CN Match: %s\n", cert.Subject.CommonName)
+				match = true
+				// fmt.Printf("CN Match: %s\nDB ID:%d\n", cert.Subject.CommonName, cachedCertId)
 			}
 			for _, san := range cert.DNSNames {
 				if strings.HasSuffix(san, *searchTerm) {
-					fmt.Printf("DNS Name: %s\n", san)
+					match = true
+					// fmt.Printf("DNS Name: %s\n", san)
+				}
+			}
+			if match {
+				// cachedCertId, err := env.db.CachedCertificateCreate(cert, certDbId)
+				_, err := env.db.CachedCertificateCreate(cert, certDbId)
+				if err != nil {
+					ex := fmt.Sprintf("Failed to insert watched cert into DB\n%s\n%s", err, pem.Encode(os.Stdout, &pem.Block{Type: "CERTIFICATE", Bytes: e.X509Cert}))
+					return done, errors.New(ex)
 				}
 			}
 
